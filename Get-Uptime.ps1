@@ -32,7 +32,12 @@
 Param (
 
     [Parameter(ValueFromPipeline=$True)]
-    [String[]]$ComputerName = $env:COMPUTERNAME
+    [String[]]$ComputerName = $env:COMPUTERNAME,
+
+    [ValidateNotNull()]
+    [System.Management.Automation.PSCredential]
+    [System.Management.Automation.Credential()]
+    $Credential
 
 )
 
@@ -59,9 +64,23 @@ Process {
         
             #Attempt to connect to the computer via CIM and pull the LastBootUpTime property from the Win32_OperatingSystem class
             Write-Debug "Attempting to connect to $Computer using CIM"
-            $LastBoot = (Get-CimInstance -ComputerName $Computer -ClassName Win32_OperatingSystem -ErrorAction Stop).LastBootUpTime
+
+            If ($Credential) {
+
+                $CimSession = New-CimSession -ComputerName $Computer -Credential $Credential
+                $LastBoot = (Get-CimInstance -CimSession $CimSession -ClassName Win32_OperatingSystem -ErrorAction Stop).LastBootUpTime
+                Remove-CimSession -CimSession $CimSession
+
+            }
+
+            Else {
+
+                $LastBoot = (Get-CimInstance -ComputerName $Computer -ClassName Win32_OperatingSystem -ErrorAction Stop).LastBootUpTime
+
+            }
         
         }
+        
         #If there is an exception with CIM
         Catch [Microsoft.Management.Infrastructure.CimException] {
 
